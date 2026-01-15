@@ -3,9 +3,9 @@ LangChain Tool Wrappers for Deterministic Tools with Gemini JSON Fix
 Handles Gemini's double-wrapped JSON format issue
 """
 import json
-from typing import Any, Callable
+from typing import Any, Callable, Optional
 from langchain_core.tools import StructuredTool
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, validator
 
 from backend.tools.deterministic.rules_tool import rules_tool as rules_tool_impl
 from backend.tools.deterministic.parser_tool import parser_tool as parser_tool_impl
@@ -48,15 +48,88 @@ def unwrap_gemini_json(raw_input: Any) -> dict:
 
 
 class RulesToolInput(BaseModel):
-    """Input schema for rules_tool"""
-    filename: str = Field(description="Name of the SQL file to analyze")
-    content: str = Field(description="SQL file content to scan for dangerous patterns")
+    """
+    Flexible input schema for rules_tool - accepts multiple parameter name variations
+    that Gemini might use
+    """
+    filename: Optional[str] = Field(None, description="Name of the SQL file to analyze")
+    content: Optional[str] = Field(None, description="SQL file content to scan for dangerous patterns")
+    
+    # Gemini often uses these alternative names
+    sql_content: Optional[str] = Field(None, description="Alternative name for SQL content")
+    query: Optional[str] = Field(None, description="Alternative name for SQL content")
+    sql: Optional[str] = Field(None, description="Alternative name for SQL content")
+    code: Optional[str] = Field(None, description="Alternative name for SQL content")
+    
+    @validator('content', pre=True, always=True)
+    def normalize_content(cls, v, values):
+        """Accept content from any of the alternative field names"""
+        if v:
+            return v
+        # Try alternative names in order of preference
+        return (
+            values.get('sql_content') or 
+            values.get('query') or 
+            values.get('sql') or 
+            values.get('code')
+        )
+    
+    @validator('filename', pre=True, always=True)
+    def normalize_filename(cls, v, values):
+        """Provide default filename if not specified"""
+        return v or "gemini_input.sql"
+    
+    @validator('content')
+    def content_required(cls, v):
+        """Ensure we have content from somewhere"""
+        if not v:
+            raise ValueError("Content is required (tried: content, sql_content, query, sql, code)")
+        return v
+    
+    class Config:
+        extra = 'allow'  # Allow Gemini to send extra fields we don't use
 
 
 class ParserToolInput(BaseModel):
-    """Input schema for parser_tool"""
-    filename: str = Field(description="Name of the SQL file to analyze")
-    content: str = Field(description="SQL file content to parse and extract entities")
+    """
+    Flexible input schema for parser_tool - accepts multiple parameter name variations
+    """
+    filename: Optional[str] = Field(None, description="Name of the SQL file to analyze")
+    content: Optional[str] = Field(None, description="SQL file content to parse and extract entities")
+    
+    # Gemini alternatives
+    sql_content: Optional[str] = Field(None, description="Alternative name for SQL content")
+    query: Optional[str] = Field(None, description="Alternative name for SQL content")
+    sql: Optional[str] = Field(None, description="Alternative name for SQL content")
+    code: Optional[str] = Field(None, description="Alternative name for SQL content")
+    
+    @validator('content', pre=True, always=True)
+    def normalize_content(cls, v, values):
+        """Accept content from any of the alternative field names"""
+        if v:
+            return v
+        return (
+            values.get('sql_content') or 
+            values.get('query') or 
+            values.get('sql') or 
+            values.get('code')
+        )
+    
+    @validator('filename', pre=True, always=True)
+    def normalize_filename(cls, v, values):
+        """Provide default filename if not specified"""
+        return v or "gemini_input.sql"
+    
+    @validator('content')
+    def content_required(cls, v):
+        """Ensure we have content from somewhere"""
+        if not v:
+            raise ValueError("Content is required (tried: content, sql_content, query, sql, code)")
+        return v
+    
+    class Config:
+        extra = 'allow'  # Allow Gemini to send extra fields
+
 
 
 def create_gemini_safe_tool(
@@ -66,7 +139,7 @@ def create_gemini_safe_tool(
     args_schema: type[BaseModel]
 ) -> StructuredTool:
     """
-    Create a LangChain tool that handles Gemini's JSON wrapping issue
+    Create a LangChain tool that handles Gemini's JSON wrapping issue AND parameter remapping
     
     Args:
         name: Tool name
@@ -75,28 +148,87 @@ def create_gemini_safe_tool(
         args_schema: Pydantic model for arguments
         
     Returns:
-        StructuredTool that unwraps Gemini JSON before validation
+        StructuredTool that unwraps Gemini JSON and remaps parameters
     """
     def wrapper(**kwargs):
-        # Debug: Print what Gemini sends
-        print(f"\n🔍 Raw input to {name}: {kwargs}\n")
+        # File logging since LangChain swallows stdout
+        import os
+        log_file = "/tmp/gemini_tool_debug.log"
         
-        # Unwrap any Gemini JSON wrapping
+        with open(log_file, "a") as f:
+            f.write(f"\n{'='*60}\n")
+            f.write(f"Tool: {name}\n")
+            f.write(f"Raw kwargs: {kwargs}\n")
+        
+        # Step 1: Unwrap any Gemini JSON wrapping
         unwrapped = unwrap_gemini_json(kwargs)
         
-        print(f"🔄 After unwrapping: {unwrapped}\n")
+        with open(log_file, "a") as f:
+            f.write(f"Unwrapped: {unwrapped}\n")
+        
+        # Step 2: Smart parameter remapping
+        # Get expected field names from schema
+        expected_fields = set(args_schema.__fields__.keys())
+        provided_fields = set(unwrapped.keys())
+        
+        # If we have exact match, great!
+        if expected_fields == provided_fields:
+            with open(log_file, "a") as f:
+                f.write(f"✅ Exact match! Calling function directly.\n")
+            validated = args_schema(**unwrapped)
+            return func(**validated.dict())
+        
+        # Otherwise, intelligently remap
+        remapped = {}
+        
+        # Common remappings for SQL tools
+        if 'filename' in expected_fields and 'filename' not in provided_fields:
+            # Gemini didn't provide filename, generate one
+            remapped['filename'] = "gemini_input.sql"
+        
+        if 'content' in expected_fields:
+            # Try to find content in various possible field names
+            for possible_content_field in ['content', 'sql_content', 'query', 'sql', 'code']:
+                if possible_content_field in unwrapped:
+                    remapped['content'] = unwrapped[possible_content_field]
+                    break
+            
+            # If still not found, use the first non-filename field
+            if 'content' not in remapped:
+                for key, value in unwrapped.items():
+                    if key != 'filename' and isinstance(value, str):
+                        remapped['content'] = value
+                        break
+        
+        # Copy any matching fields
+        for field in expected_fields:
+            if field in unwrapped:
+                remapped[field] = unwrapped[field]
+        
+        with open(log_file, "a") as f:
+            f.write(f"Expected: {list(expected_fields)}\n")
+            f.write(f"Got: {list(provided_fields)}\n")
+            f.write(f"Remapped: {remapped}\n")
         
         # Validate with Pydantic
         try:
-            validated = args_schema(**unwrapped)
+            validated = args_schema(**remapped)
         except Exception as e:
-            print(f"❌ Validation error: {e}")
-            print(f"   Expected fields: {list(args_schema.__fields__.keys())}")
-            print(f"   Got fields: {list(unwrapped.keys())}")
+            with open(log_file, "a") as f:
+                f.write(f"❌ Validation error: {e}\n")
             raise
         
+        with open(log_file, "a") as f:
+            f.write(f"✅ Calling function with: {validated.dict()}\n")
+        
         # Call the actual function with validated args
-        return func(**validated.dict())
+        result = func(**validated.dict())
+        
+        with open(log_file, "a") as f:
+            f.write(f"Result preview: {result[:200] if isinstance(result, str) else result}...\n")
+        
+        return result
+
     
     return StructuredTool.from_function(
         func=wrapper,
@@ -170,25 +302,39 @@ def parser_tool_func(filename: str, content: str) -> str:
     return result
 
 
-# Create Gemini-safe tools
-rules_tool = create_gemini_safe_tool(
+# Create tools with wrapper that extracts only required fields
+def make_rules_tool_wrapper(validated_input: RulesToolInput) -> str:
+    """Wrapper that extracts only filename and content"""
+    return rules_tool_func(
+        filename=validated_input.filename,
+        content=validated_input.content
+    )
+
+def make_parser_tool_wrapper(validated_input: ParserToolInput) -> str:
+    """Wrapper that extracts only filename and content"""
+    return parser_tool_func(
+        filename=validated_input.filename,
+        content=validated_input.content
+    )
+
+rules_tool = StructuredTool.from_function(
+    func=make_rules_tool_wrapper,
     name="rules_tool",
     description=(
         "Scans SQL for dangerous patterns like DROP TABLE, TRUNCATE, unfiltered DELETE. "
         "Fast pattern matching using regex. Use this FIRST for quick risk detection."
     ),
-    func=rules_tool_func,
     args_schema=RulesToolInput
 )
 
-parser_tool = create_gemini_safe_tool(
+parser_tool = StructuredTool.from_function(
+    func=make_parser_tool_wrapper,
     name="parser_tool",
     description=(
         "Parses SQL using AST to extract tables and detect structural issues. "
         "Finds unfiltered DML, orphaned references, DDL/DML mixing. "
         "Use this for dependency analysis after initial pattern scan."
     ),
-    func=parser_tool_func,
     args_schema=ParserToolInput
 )
 
