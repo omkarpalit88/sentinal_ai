@@ -132,3 +132,11 @@ def add_dependency(state: AnalysisState, dependency: Dependency) -> AnalysisStat
         **state,
         "cross_file_deps": state.get("cross_file_deps", []) + [dependency]
     }
+
+
+def update_state(state: AnalysisState, key: str, value: any) -> AnalysisState:
+    """Generic immutable state update for any field"""
+    return {
+        **state,
+        key: value
+    }
