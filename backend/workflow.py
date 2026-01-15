@@ -22,8 +22,9 @@ def create_workflow() -> StateGraph:
         Compiled StateGraph ready for invocation
     """
     from backend.agents.sql_agent import create_sql_agent
+    from backend.agents.synthesis_agent import synthesis_agent
     
-    # Create agent instance
+    # Create agent instances
     sql_agent = create_sql_agent()
     
     workflow = StateGraph(AnalysisState)
@@ -31,9 +32,7 @@ def create_workflow() -> StateGraph:
     # Add nodes
     workflow.add_node("orchestrator", orchestrator.process)
     workflow.add_node("sql_agent", sql_agent.process)
-    
-    # Phase 1: Placeholder synthesis agent (will implement in Sub-Phase 1.5)
-    workflow.add_node("synthesis_agent", lambda state: _placeholder_synthesis_agent(state))
+    workflow.add_node("synthesis_agent", synthesis_agent.process)
     
     # Define edges
     workflow.set_entry_point("orchestrator")
@@ -74,22 +73,3 @@ def _route_from_orchestrator(state: AnalysisState) -> Literal["sql_agent", "synt
         return "sql_agent"
     else:
         return "synthesis_agent"
-
-
-# Placeholder implementations (Phase 1)
-def _placeholder_synthesis_agent(state: AnalysisState) -> AnalysisState:
-    """Placeholder - will implement in Sub-Phase 1.5"""
-    from backend.state import AgentDecision, add_decision
-    from datetime import datetime
-    
-    state["analysis_completed_at"] = datetime.now()
-    state["defense_memo"] = "# Defense Memo\n\n*Placeholder - Agent not yet implemented*"
-    state["overall_risk"] = "INFO"
-    state["recommend_approval"] = True
-    
-    decision = AgentDecision(
-        agent_name="synthesis_agent",
-        decision="Placeholder - not yet implemented",
-        justification="Synthesis Agent will be implemented in Sub-Phase 1.5"
-    )
-    return add_decision(state, decision)

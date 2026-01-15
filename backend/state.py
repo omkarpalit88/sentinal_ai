@@ -98,7 +98,6 @@ class AnalysisState(TypedDict):
     
     # Overall assessment
     overall_risk: Optional[ConstraintLevel]
-    recommend_approval: Optional[bool]
     defense_memo: Optional[str]  # Final markdown output
     
     # Metadata
