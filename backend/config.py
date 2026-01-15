@@ -15,7 +15,7 @@ class Settings(BaseSettings):
     
     # Gemini API
     gemini_api_key: str = Field(default="", env="GEMINI_API_KEY")
-    gemini_model: str = Field(default="gemini-2.0-flash-exp", env="GEMINI_MODEL")
+    gemini_model: str = Field(default="gemini-3-flash-preview", env="GEMINI_MODEL")
     gemini_temperature: float = Field(default=0.1, env="GEMINI_TEMPERATURE")
     gemini_max_tokens: int = Field(default=8192, env="GEMINI_MAX_TOKENS")
     
