@@ -1,0 +1,25 @@
+# SentinAL Dependencies
+
+# LangChain & LangGraph
+langchain>=0.1.0
+langgraph>=0.2.0
+langchain-google-genai>=1.0.0
+
+# Data validation
+pydantic>=2.5.0
+pydantic-settings>=2.1.0
+
+# API
+fastapi>=0.108.0
+uvicorn[standard]>=0.25.0
+python-multipart>=0.0.6
+
+# Utilities
+python-dotenv>=1.0.0
+sqlparse>=0.4.4  # SQL parsing
+pyyaml>=6.0.1    # YAML parsing
+
+# Testing
+pytest>=7.4.0
+pytest-asyncio>=0.21.0
+httpx>=0.25.0  # For testing FastAPI
