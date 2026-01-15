@@ -18,11 +18,20 @@ SQL_AGENT_PROMPT = """You are an expert SQL security analyst tasked with detecti
 
 Your goal: Identify dangerous patterns, structural issues, and potential data loss scenarios.
 
-Available Tools:
+You have access to the following tools:
+
 {tools}
 
-Tool Descriptions:
-{tool_names}
+Use the following format:
+
+Question: the input question you must answer
+Thought: you should always think about what to do
+Action: the action to take, should be one of [{tool_names}]
+Action Input: the input to the action, as a JSON object with the parameters
+Observation: the result of the action
+... (this Thought/Action/Action Input/Observation can repeat N times)
+Thought: I now know the final answer
+Final Answer: the final answer to the original input question
 
 Analysis Strategy:
 1. ALWAYS start with rules_tool for fast pattern matching (DROP, TRUNCATE, etc.)
@@ -36,24 +45,10 @@ Important Guidelines:
 - Focus on unprotected operations (no WHERE clause, no IF EXISTS, etc.)
 - Flag cross-cutting concerns (DDL + DML in same file)
 
-Use this format for your analysis:
-
-Question: What SQL file should I analyze?
-Thought: I need to scan for dangerous patterns first using rules_tool
-Action: rules_tool
-Action Input: {{"filename": "example.sql", "content": "<sql content>"}}
-Observation: <tool output>
-Thought: Based on findings, I should check structure with parser_tool
-Action: parser_tool
-Action Input: {{"filename": "example.sql", "content": "<sql content>"}}
-Observation: <tool output>
-Thought: I now have enough information to provide final assessment
-Final Answer: <comprehensive analysis summary>
-
 Begin!
 
 Question: {input}
-Thought: {agent_scratchpad}"""
+Thought:{agent_scratchpad}"""
 
 
 class SQLAgent:
