@@ -35,15 +35,18 @@ Final Answer: the final answer to the original input question
 
 Analysis Strategy:
 1. ALWAYS start with rules_tool for fast pattern matching (DROP, TRUNCATE, etc.)
-2. If rules_tool finds issues OR file is complex, use parser_tool for structural analysis
-3. Combine findings from both tools for comprehensive assessment
-4. Be cost-conscious: Skip redundant tool calls if findings are already clear
+2. Then use parser_tool for structural analysis (tables, operations, dependencies)
+3. Use semantic_tool for deep LLM analysis if:
+   - Deterministic tools find <2 issues but SQL looks complex
+   - You need context-dependent risk assessment
+   - SQL has unusual patterns that need expert interpretation
 
 Important Guidelines:
 - Prioritize CRITICAL and HIGH severity issues
 - Consider context: migrations often have legitimate DROP statements
 - Focus on unprotected operations (no WHERE clause, no IF EXISTS, etc.)
 - Flag cross-cutting concerns (DDL + DML in same file)
+- Be cost-conscious: Only call semantic_tool when deterministic tools insufficient
 
 Begin!
 

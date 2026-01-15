@@ -3,7 +3,7 @@ LangChain Tool Wrappers for Deterministic Tools with Gemini JSON Fix
 Handles Gemini's double-wrapped JSON format issue
 """
 import json
-from typing import Any, Callable, Optional
+from typing import Any, Callable, Optional, Dict
 from langchain_core.tools import StructuredTool
 from pydantic import BaseModel, Field, validator
 
@@ -302,6 +302,80 @@ def parser_tool_func(filename: str, content: str) -> str:
     return result
 
 
+
+class SemanticToolInput(BaseModel):
+    """
+    Flexible input schema for semantic_tool - accepts multiple parameter name variations
+    """
+    filename: Optional[str] = Field(None, description="Name of the SQL file to analyze")
+    content: Optional[str] = Field(None, description="SQL file content for semantic analysis")
+    context: Optional[Dict] = Field(None, description="Optional context from parser tool")
+    
+    # Gemini alternatives
+    sql_content: Optional[str] = Field(None, description="Alternative name for SQL content")
+    query: Optional[str] = Field(None, description="Alternative name for SQL content")
+    sql: Optional[str] = Field(None, description="Alternative name for SQL content")
+    code: Optional[str] = Field(None, description="Alternative name for SQL content")
+    
+    @validator('content', pre=True, always=True)
+    def normalize_content(cls, v, values):
+        """Accept content from any of the alternative field names"""
+        if v:
+            return v
+        return (
+            values.get('sql_content') or 
+            values.get('query') or 
+            values.get('sql') or 
+            values.get('code')
+        )
+    
+    @validator('filename', pre=True, always=True)
+    def normalize_filename(cls, v, values):
+        """Provide default filename if not specified"""
+        return v or "gemini_input.sql"
+    
+    @validator('content')
+    def content_required(cls, v):
+        """Ensure we have content from somewhere"""
+        if not v:
+            raise ValueError("Content is required (tried: content, sql_content, query, sql, code)")
+        return v
+    
+    class Config:
+        extra = 'allow'  # Allow Gemini to send extra fields
+
+
+def semantic_tool_func(filename: str, content: str, context: Optional[Dict] = None) -> str:
+    """
+    Performs LLM-powered semantic analysis on SQL
+    
+    Args:
+        filename: Name of SQL file
+        content: SQL file content
+        context: Optional context from parser tool
+        
+    Returns:
+        Human-readable summary of semantic findings
+    """
+    from backend.tools.deterministic.semantic_tool import semantic_tool as semantic_tool_impl
+    
+    findings = semantic_tool_impl.analyze(filename, content, context)
+    
+    if not findings:
+        return f"✅ No semantic risks detected in {filename} by LLM analysis"
+    
+    result = f"LLM Semantic Analysis found {len(findings)} risk(s) in {filename}:\n\n"
+    for i, finding in enumerate(findings, 1):
+        result += f"{i}. [{finding.severity.value}] {finding.category}\n"
+        result += f"   {finding.description}\n"
+        result += f"   Reasoning: {finding.reasoning}\n"
+        if finding.recommendation:
+            result += f"   Recommendation: {finding.recommendation}\n"
+        result += "\n"
+    
+    return result
+
+
 # Create tools with wrapper that extracts only required fields
 def make_rules_tool_wrapper(validated_input: RulesToolInput) -> str:
     """Wrapper that extracts only filename and content"""
@@ -315,6 +389,14 @@ def make_parser_tool_wrapper(validated_input: ParserToolInput) -> str:
     return parser_tool_func(
         filename=validated_input.filename,
         content=validated_input.content
+    )
+
+def make_semantic_tool_wrapper(validated_input: SemanticToolInput) -> str:
+    """Wrapper that extracts filename, content, and optional context"""
+    return semantic_tool_func(
+        filename=validated_input.filename,
+        content=validated_input.content,
+        context=validated_input.context
     )
 
 rules_tool = StructuredTool.from_function(
@@ -338,5 +420,17 @@ parser_tool = StructuredTool.from_function(
     args_schema=ParserToolInput
 )
 
+semantic_tool = StructuredTool.from_function(
+    func=make_semantic_tool_wrapper,
+    name="semantic_tool",
+    description=(
+        "LLM-powered deep semantic analysis of SQL for context-dependent risks. "
+        "Detects business logic violations, implicit assumptions, data integrity issues, "
+        "performance anti-patterns, and security risks. Use AFTER deterministic tools "
+        "for comprehensive analysis or when deterministic tools find few issues."
+    ),
+    args_schema=SemanticToolInput
+)
+
 # Export tools list for agent
-sql_analysis_tools = [rules_tool, parser_tool]
+sql_analysis_tools = [rules_tool, parser_tool, semantic_tool]
