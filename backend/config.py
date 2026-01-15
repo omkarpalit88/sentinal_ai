@@ -1,10 +1,13 @@
-"""
-Configuration management for SentinAL
+""" Pydantic settings for SentinAL configuration
 """
 import os
 from typing import Optional
 from pydantic_settings import BaseSettings
 from pydantic import Field
+from dotenv import load_dotenv
+
+# Load .env file
+load_dotenv()
 
 
 class Settings(BaseSettings):

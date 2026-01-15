@@ -21,13 +21,18 @@ def create_workflow() -> StateGraph:
     Returns:
         Compiled StateGraph ready for invocation
     """
+    from backend.agents.sql_agent import create_sql_agent
+    
+    # Create agent instance
+    sql_agent = create_sql_agent()
+    
     workflow = StateGraph(AnalysisState)
     
     # Add nodes
     workflow.add_node("orchestrator", orchestrator.process)
+    workflow.add_node("sql_agent", sql_agent.process)
     
-    # Phase 1: Placeholder nodes (will implement in later sub-phases)
-    workflow.add_node("sql_agent", lambda state: _placeholder_sql_agent(state))
+    # Phase 1: Placeholder synthesis agent (will implement in Sub-Phase 1.5)
     workflow.add_node("synthesis_agent", lambda state: _placeholder_synthesis_agent(state))
     
     # Define edges
@@ -71,19 +76,7 @@ def _route_from_orchestrator(state: AnalysisState) -> Literal["sql_agent", "synt
         return "synthesis_agent"
 
 
-# Placeholder implementations (Phase 1.1)
-def _placeholder_sql_agent(state: AnalysisState) -> AnalysisState:
-    """Placeholder - will implement in Sub-Phase 1.3"""
-    from backend.state import AgentDecision, add_decision
-    
-    decision = AgentDecision(
-        agent_name="sql_agent",
-        decision="Placeholder - not yet implemented",
-        justification="SQL Agent will be implemented in Sub-Phase 1.3"
-    )
-    return add_decision(state, decision)
-
-
+# Placeholder implementations (Phase 1)
 def _placeholder_synthesis_agent(state: AnalysisState) -> AnalysisState:
     """Placeholder - will implement in Sub-Phase 1.5"""
     from backend.state import AgentDecision, add_decision

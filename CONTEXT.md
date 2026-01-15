@@ -132,11 +132,11 @@ sentinal-ai/
 - Conditional routing (orchestrator decides next agent)
 - Production-ready, maintained by LangChain team
 
-### 2. Why Gemini 2.0 Flash?
-- **1M+ token context window** (can send entire files)
-- **Fast inference** (2-5 seconds)
-- **Low cost** ($0.075 per 1M input tokens, free tier available)
-- **High quality reasoning**
+### 2. Why Gemini 3.0 Flash Preview?
+- **2M+ token context window** (can send entire files and more)
+- **Faster inference** (1-3 seconds)
+- **Lower cost** (improved efficiency)
+- **Enhanced reasoning** (better function calling and tool use)
 - Native LangChain integration
 
 ### 3. Why Multi-Agent vs Monolithic?
@@ -297,7 +297,7 @@ sentinal-ai/
 - Python 3.9+
 - **LangGraph 0.6.11** - Multi-agent orchestration
 - **LangChain 0.3.27** - Agent framework, tools
-- **Gemini 2.0 Flash Exp** - LLM via `langchain-google-genai`
+- **Gemini 3.0 Flash Preview** - LLM via `langchain-google-genai`
 - **FastAPI 0.128.0** - REST API (Sub-Phase 1.6)
 - **Pydantic 2.12.5** - Data validation, settings
 - **Pytest 8.4.2** - Testing

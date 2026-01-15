@@ -13,14 +13,17 @@ class GeminiClient:
     def __init__(self, temperature: Optional[float] = None):
         self.temperature = temperature or settings.gemini_temperature
         self.model_name = settings.gemini_model
-        self.api_key = settings.gemini_api_key or os.getenv("GEMINI_API_KEY")
-        
-        if not self.api_key:
+        self._llm = None
+    
+    @property
+    def api_key(self) -> str:
+        """Get API key from settings or environment"""
+        api_key = settings.gemini_api_key or os.getenv("GEMINI_API_KEY")
+        if not api_key:
             raise ValueError(
                 "GEMINI_API_KEY not found. Set it in .env or environment."
             )
-        
-        self._llm = None
+        return api_key
     
     @property
     def llm(self) -> ChatGoogleGenerativeAI:
