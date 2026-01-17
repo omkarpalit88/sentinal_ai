@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SentinAL - Code Deployment Analyzer</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🛡️ SentinAL</h1>
+            <p class="subtitle">Agentic Code Analysis for Deployment Safety</p>
+        </header>
+
+        <!-- File Upload Section -->
+        <section class="upload-section">
+            <div class="upload-area" id="uploadArea">
+                <svg class="upload-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                </svg>
+                <p class="upload-text">Drag & drop your file here</p>
+                <p class="upload-subtext">or</p>
+                <button class="browse-btn" onclick="document.getElementById('fileInput').click()">Browse Files</button>
+                <input type="file" id="fileInput" accept=".sql,.tf,.yaml,.yml" hidden>
+                <p class="file-types">Supported: SQL, Terraform, YAML</p>
+            </div>
+            <div class="selected-file" id="selectedFile" style="display: none;">
+                <span id="fileName"></span>
+                <button class="remove-btn" onclick="removeFile()">×</button>
+            </div>
+            <button class="analyze-btn" id="analyzeBtn" onclick="analyzeFile()" disabled>Analyze File</button>
+        </section>
+
+        <!-- Loading Indicator -->
+        <div class="loading" id="loading" style="display: none;">
+            <div class="spinner"></div>
+            <p>Analyzing your code with AI agents...</p>
+        </div>
+
+        <!-- Error Display -->
+        <div class="error" id="error" style="display: none;"></div>
+
+        <!-- Results Section -->
+        <section class="results-section" id="resultsSection" style="display: none;">
+            <!-- Risk Score Card -->
+            <div class="risk-card">
+                <h2>Risk Assessment</h2>
+                <div class="risk-score-container">
+                    <div class="risk-score" id="riskScore">0/100</div>
+                    <div class="risk-badge" id="riskBadge">LOW</div>
+                </div>
+                <div class="findings-summary">
+                    <div class="finding-stat">
+                        <span class="stat-label">Critical:</span>
+                        <span class="stat-value critical" id="criticalCount">0</span>
+                    </div>
+                    <div class="finding-stat">
+                        <span class="stat-label">High:</span>
+                        <span class="stat-value high" id="highCount">0</span>
+                    </div>
+                    <div class="finding-stat">
+                        <span class="stat-label">Medium:</span>
+                        <span class="stat-value medium" id="mediumCount">0</span>
+                    </div>
+                    <div class="finding-stat">
+                        <span class="stat-label">Low:</span>
+                        <span class="stat-value low" id="lowCount">0</span>
+                    </div>
+                </div>
+                <div class="analysis-meta">
+                    <p>Cost: $<span id="cost">0.00</span></p>
+                    <p>Time: <span id="time">0</span>s</p>
+                </div>
+            </div>
+
+            <!-- Defense Memo -->
+            <div class="memo-container">
+                <div class="memo-header">
+                    <h2>Defense Memo</h2>
+                    <button class="download-btn" onclick="downloadMemo()">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                        Download .md
+                    </button>
+                </div>
+                <div class="memo-content" id="memoContent"></div>
+            </div>
+        </section>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>

@@ -69,9 +69,9 @@ VETO_RULES_SQL = [
     },
     {
         "pattern": r"DROP\s+TABLE",
-        "severity": "HIGH",
+        "severity": "CRITICAL",
         "category": "DROP_TABLE",
-        "description": "Dropping table - potential data loss",
+        "description": "Dropping table - permanent data loss",
         "recommendation": "Verify no downstream dependencies. Consider soft delete."
     },
     {

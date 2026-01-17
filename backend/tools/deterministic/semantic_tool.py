@@ -106,7 +106,7 @@ class SemanticTool:
         filename: str, 
         content: str, 
         context: Optional[Dict[str, Any]] = None
-    ) -> List[Finding]:
+    ) -> tuple[List[Finding], float]:
         """
         Perform semantic analysis on SQL using LLM
         
@@ -116,7 +116,7 @@ class SemanticTool:
             context: Optional context from parser (tables created/dropped, etc.)
             
         Returns:
-            List of Finding objects from LLM analysis
+            Tuple of (List of Finding objects, cost in USD)
         """
         # Format context for LLM
         context_str = self._format_context(context) if context else "No parser context available"
@@ -129,8 +129,16 @@ class SemanticTool:
         )
         
         try:
+            # Get cost before call
+            from backend.utils.gemini_client import gemini_client
+            gemini_client.reset_cost_tracking()
+            
             # Call Gemini
             response = self.llm.invoke(prompt)
+            
+            # Get cost after call
+            cost_summary = gemini_client.get_cost_summary()
+            cost = cost_summary.get('total_cost_usd', 0.0)
             
             # Extract text from response
             response_text = response.content if hasattr(response, 'content') else str(response)
@@ -138,12 +146,12 @@ class SemanticTool:
             # Parse findings from JSON
             findings = self._parse_llm_response(response_text, filename)
             
-            return findings
+            return findings, cost
             
         except Exception as e:
             # Log error but don't fail - return empty findings
             print(f"Warning: Semantic analysis failed for {filename}: {e}")
-            return []
+            return [], 0.0
     
     def _format_context(self, context: Dict[str, Any]) -> str:
         """Format parser context for LLM"""

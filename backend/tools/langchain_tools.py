@@ -355,14 +355,14 @@ def semantic_tool_func(filename: str, content: str, context: Optional[Dict] = No
         context: Optional context from parser tool
         
     Returns:
-        Human-readable summary of semantic findings
+        Human-readable summary of semantic findings with cost info
     """
     from backend.tools.deterministic.semantic_tool import semantic_tool as semantic_tool_impl
     
-    findings = semantic_tool_impl.analyze(filename, content, context)
+    findings, cost = semantic_tool_impl.analyze(filename, content, context)
     
     if not findings:
-        return f"✅ No semantic risks detected in {filename} by LLM analysis"
+        return f"✅ No semantic risks detected in {filename} by LLM analysis (Cost: ${cost:.6f})"
     
     result = f"LLM Semantic Analysis found {len(findings)} risk(s) in {filename}:\n\n"
     for i, finding in enumerate(findings, 1):
@@ -372,6 +372,8 @@ def semantic_tool_func(filename: str, content: str, context: Optional[Dict] = No
         if finding.recommendation:
             result += f"   Recommendation: {finding.recommendation}\n"
         result += "\n"
+    
+    result += f"\n💰 LLM Cost: ${cost:.6f}"
     
     return result
 
