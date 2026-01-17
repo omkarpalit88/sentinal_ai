@@ -434,5 +434,192 @@ semantic_tool = StructuredTool.from_function(
     args_schema=SemanticToolInput
 )
 
+
 # Export tools list for agent
 sql_analysis_tools = [rules_tool, parser_tool, semantic_tool]
+
+
+# ============================================================================
+# TERRAFORM TOOLS
+# ============================================================================
+
+def terraform_rules_tool_func(filename: str, content: str) -> str:
+    """
+    Scans Terraform for dangerous patterns using regex-based veto rules.
+    
+    Args:
+        filename: Name of Terraform file
+        content: HCL file content
+        
+    Returns:
+        Human-readable summary of findings
+    """
+    from backend.tools.deterministic.terraform_rules_tool import terraform_rules_tool as tf_rules_impl
+    
+    findings = tf_rules_impl.analyze(filename, content)
+    
+    if not findings:
+        return f"✅ No dangerous Terraform patterns detected in {filename}"
+    
+    result = f"Found {len(findings)} issue(s) in {filename}:\n\n"
+    for i, finding in enumerate(findings, 1):
+        result += f"{i}. [{finding.severity.value}] {finding.category}\n"
+        result += f"   Line {finding.line_number}: {finding.description}\n"
+        result += f"   Recommendation: {finding.recommendation}\n\n"
+    
+    return result
+
+
+def terraform_parser_tool_func(filename: str, content: str) -> str:
+    """
+    Parses Terraform HCL to extract resources and detect structural issues.
+    
+    Args:
+        filename: Name of Terraform file
+        content: HCL file content
+        
+    Returns:
+        Human-readable summary of structure + findings
+    """
+    from backend.tools.deterministic.terraform_parser_tool import terraform_parser_tool as tf_parser_impl
+    
+    findings = tf_parser_impl.analyze(filename, content)
+    entities = tf_parser_impl.get_entities(content)
+    
+    result = f"Terraform Structure Analysis for {filename}:\n\n"
+    
+    if entities["resources"]:
+        result += f"📦 Resources: {len(entities['resources'])}\n"
+    if entities["data_sources"]:
+        result += f"📊 Data Sources: {len(entities['data_sources'])}\n"
+    if entities["modules"]:
+        result += f"📁 Modules: {', '.join(entities['modules'])}\n"
+    
+    result += "\n"
+    
+    if not findings:
+        result += "✅ No structural issues detected"
+    else:
+        result += f"Found {len(findings)} issue(s):\n\n"
+        for i, finding in enumerate(findings, 1):
+            result += f"{i}. [{finding.severity.value}] {finding.category}\n"
+            result += f"   {finding.description}\n\n"
+    
+    return result
+
+
+# Terraform tool input schemas (reuse RulesToolInput and ParserToolInput for simplicity)
+terraform_rules_tool = StructuredTool.from_function(
+    func=lambda **kwargs: terraform_rules_tool_func(**RulesToolInput(**kwargs).dict()),
+    name="terraform_rules_tool",
+    description=(
+        "Scans Terraform for dangerous patterns like force_destroy=true, count=0, terraform destroy. "
+        "Fast pattern matching using regex. Use this FIRST for quick risk detection."
+    ),
+    args_schema=RulesToolInput
+)
+
+terraform_parser_tool = StructuredTool.from_function(
+    func=lambda **kwargs: terraform_parser_tool_func(**ParserToolInput(**kwargs).dict()),
+    name="terraform_parser_tool",
+    description=(
+        "Parses Terraform HCL to extract resources and detect structural issues. "
+        "Finds missing lifecycle blocks, identifies resource types. "
+        "Use this for structural analysis after initial pattern scan."
+    ),
+    args_schema=ParserToolInput
+)
+
+# Export Terraform tools list for agent
+terraform_analysis_tools = [terraform_rules_tool, terraform_parser_tool]
+
+
+# ============================================================================
+# YAML TOOLS
+# ============================================================================
+
+def yaml_rules_tool_func(filename: str, content: str) -> str:
+    """
+    Scans YAML for dangerous patterns using regex-based veto rules.
+    
+    Args:
+        filename: Name of YAML file
+        content: YAML file content
+        
+    Returns:
+        Human-readable summary of findings
+    """
+    from backend.tools.deterministic.yaml_rules_tool import yaml_rules_tool as yaml_rules_impl
+    
+    findings = yaml_rules_impl.analyze(filename, content)
+    
+    if not findings:
+        return f"✅ No dangerous YAML patterns detected in {filename}"
+    
+    result = f"Found {len(findings)} issue(s) in {filename}:\n\n"
+    for i, finding in enumerate(findings, 1):
+        result += f"{i}. [{finding.severity.value}] {finding.category}\n"
+        result += f"   Line {finding.line_number}: {finding.description}\n"
+        result += f"   Recommendation: {finding.recommendation}\n\n"
+    
+    return result
+
+
+def yaml_parser_tool_func(filename: str, content: str) -> str:
+    """
+    Parses YAML to extract Kubernetes resources and detect structural issues.
+    
+    Args:
+        filename: Name of YAML file
+        content: YAML file content
+        
+    Returns:
+        Human-readable summary of structure + findings
+    """
+    from backend.tools.deterministic.yaml_parser_tool import yaml_parser_tool as yaml_parser_impl
+    
+    findings = yaml_parser_impl.analyze(filename, content)
+    entities = yaml_parser_impl.get_entities(content)
+    
+    result = f"YAML Structure Analysis for {filename}:\n\n"
+    
+    if entities["kind"]:
+        result += f"📋 Kinds: {', '.join(entities['kind'])}\n"
+    
+    result += "\n"
+    
+    if not findings:
+        result += "✅ No structural issues detected"
+    else:
+        result += f"Found {len(findings)} issue(s):\n\n"
+        for i, finding in enumerate(findings, 1):
+            result += f"{i}. [{finding.severity.value}] {finding.category}\n"
+            result += f"   {finding.description}\n\n"
+    
+    return result
+
+
+# YAML tool input schemas (reuse RulesToolInput and ParserToolInput for simplicity)
+yaml_rules_tool_lc = StructuredTool.from_function(
+    func=lambda **kwargs: yaml_rules_tool_func(**RulesToolInput(**kwargs).dict()),
+    name="yaml_rules_tool",
+    description=(
+        "Scans YAML for dangerous patterns like privileged:true, replicas:0, hostNetwork:true. "
+        "Fast pattern matching using regex. Use this FIRST for quick risk detection."
+    ),
+    args_schema=RulesToolInput
+)
+
+yaml_parser_tool_lc = StructuredTool.from_function(
+    func=lambda **kwargs: yaml_parser_tool_func(**ParserToolInput(**kwargs).dict()),
+    name="yaml_parser_tool",
+    description=(
+        "Parses YAML to extract Kubernetes resources and detect structural issues. "
+        "Finds missing resource limits, identifies resource types. "
+        "Use this for structural analysis after initial pattern scan."
+    ),
+    args_schema=ParserToolInput
+)
+
+# Export YAML tools list for agent
+yaml_analysis_tools = [yaml_rules_tool_lc, yaml_parser_tool_lc]

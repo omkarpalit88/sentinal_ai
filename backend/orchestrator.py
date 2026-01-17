@@ -92,10 +92,14 @@ class OrchestratorAgent:
         """
         files = state.get("files", [])
         
-        # Phase 1: Simple routing to SQL agent
+        # Route to appropriate specialist agent based on file type
         for file in files:
             if file.file_type == FileType.SQL:
                 return "sql_agent"
+            elif file.file_type == FileType.TERRAFORM:
+                return "terraform_agent"
+            elif file.file_type == FileType.YAML:
+                return "yaml_agent"
         
         # No supported file types
         return "synthesis_agent"

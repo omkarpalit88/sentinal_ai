@@ -1,0 +1,43 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: safe-app
+  namespace: production
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: safe-app
+  template:
+    metadata:
+      labels:
+        app: safe-app
+    spec:
+      containers:
+      - name: app
+        image: myapp:1.2.3
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 8080
+        resources:
+          requests:
+            memory: "64Mi"
+            cpu: "250m"
+          limits:
+            memory: "128Mi"
+            cpu: "500m"
+        securityContext:
+          runAsNonRoot: true
+          readOnlyRootFilesystem: true
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: safe-app-service
+spec:
+  selector:
+    app: safe-app
+  ports:
+  - protocol: TCP
+    port: 80
+    targetPort: 8080

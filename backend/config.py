@@ -104,6 +104,20 @@ VETO_RULES_TERRAFORM = [
         "category": "PREVENT_DESTROY_DISABLED",
         "description": "prevent_destroy disabled - allows accidental deletion",
         "recommendation": "Enable prevent_destroy for critical resources."
+    },
+    {
+        "pattern": r"terraform\s+destroy",
+        "severity": "CRITICAL",
+        "category": "TERRAFORM_DESTROY",
+        "description": "Terraform destroy command - infrastructure removal",
+        "recommendation": "Verify this is intentional. Use targeted destroy if possible."
+    },
+    {
+        "pattern": r"count\s*=\s*0",
+        "severity": "HIGH",
+        "category": "RESOURCE_COUNT_ZERO",
+        "description": "Resource count set to 0 - removes infrastructure",
+        "recommendation": "Ensure intentional resource removal."
     }
 ]
 
@@ -114,5 +128,26 @@ VETO_RULES_YAML = [
         "category": "ZERO_REPLICAS",
         "description": "Deployment scaled to 0 replicas - service downtime",
         "recommendation": "Verify intentional scaling to zero."
+    },
+    {
+        "pattern": r"privileged:\s*true",
+        "severity": "CRITICAL",
+        "category": "PRIVILEGED_CONTAINER",
+        "description": "Container runs with privileged mode - security risk",
+        "recommendation": "Remove privileged mode unless absolutely required. Use capabilities instead."
+    },
+    {
+        "pattern": r"hostNetwork:\s*true",
+        "severity": "CRITICAL",
+        "category": "HOST_NETWORK",
+        "description": "Pod uses host network namespace - security risk",
+        "recommendation": "Remove hostNetwork unless required for network appliances."
+    },
+    {
+        "pattern": r"imagePullPolicy:\s*Always",
+        "severity": "MEDIUM",
+        "category": "ALWAYS_PULL_IMAGE",
+        "description": "Always pulling images can cause downtime if registry is unavailable",
+        "recommendation": "Use IfNotPresent for production stability."
     }
 ]
