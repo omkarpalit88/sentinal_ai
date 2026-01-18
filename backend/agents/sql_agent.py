@@ -16,7 +16,7 @@ from backend.utils.gemini_client import gemini_client
 # SQL Agent Prompt
 SQL_AGENT_PROMPT = """You are an expert SQL security analyst detecting deployment risks.
 
-Your goal: Identify dangerous patterns, structural issues, and data loss scenarios.
+Your goal: Identify dangerous patterns, destructive operations, and business logic risks in SQL scripts.
 
 Available tools:
 {tools}
@@ -31,14 +31,21 @@ Observation: result of the action
 Thought: I now know the final answer
 Final Answer: summary of your analysis
 
-Strategy:
-1. ALWAYS start with rules_tool (fast pattern matching)
-2. Then use parser_tool (structural analysis)
-3. Optionally use semantic_tool if complex patterns found
+**MANDATORY TOOL SEQUENCE:**
+You MUST call ALL THREE tools in this exact order:
+1. FIRST: Call rules_tool (fast pattern matching for DROP, TRUNCATE, DELETE, etc.)
+2. SECOND: Call parser_tool (structural analysis of DDL/DML statements)
+3. THIRD: Call semantic_tool (business logic and context analysis)
 
-Guidelines:
-- Prioritize CRITICAL and HIGH severity
-- Be cost-conscious with semantic_tool
+**CRITICAL:**
+- DO NOT STOP after rules_tool finds issues
+- DO NOT STOP after parser_tool completes
+- You MUST continue until you've called semantic_tool
+- ALL THREE tools are REQUIRED for complete analysis
+
+**After calling all three tools:**
+- Review the combined findings from all tools
+- Provide your final answer summarizing all risks found
 
 Question: {input}
 Thought:{agent_scratchpad}"""
@@ -72,12 +79,16 @@ class SQLAgent:
             prompt=prompt
         )
         
+        # Import custom callback for logging
+        from backend.utils.agent_logger import AgentLoggingCallback
+        
         self.agent_executor = AgentExecutor(
             agent=self.agent,
             tools=sql_analysis_tools,
             verbose=settings.log_agent_decisions,
             max_iterations=settings.max_iterations_per_agent,
             handle_parsing_errors=True,
+            callbacks=[AgentLoggingCallback()],  # Add custom callback
             return_intermediate_steps=True
         )
     
@@ -140,16 +151,26 @@ class SQLAgent:
         
         try:
             # Step 1: Let LLM agent decide which tools to call
+            print(f"\n{'='*80}", flush=True)
+            print(f"🚀 STARTING SQL AGENT ANALYSIS: {filename}", flush=True)
+            print(f"{'='*80}\n", flush=True)
+            
             result = self.agent_executor.invoke({
                 "input": f"Analyze this SQL file for deployment risks:\n\nFilename: {filename}\n\nContent:\n{content}"
             })
             
+            print(f"\n{'='*80}", flush=True)
+            print(f"📊 AGENT RESULT RETURNED", flush=True)
+            print(f"{'='*80}\n", flush=True)
+            
             # Step 2: Track which tools the LLM decided to call
             tools_called = []
             if result.get("intermediate_steps"):
+                print(f"\n🔍 TOOLS CALLED BY AGENT:", flush=True)
                 for step in result["intermediate_steps"]:
                     action, observation = step
                     tools_called.append(action.tool)
+                    print(f"  ✓ {action.tool}", flush=True)
                     
                     decision = AgentDecision(
                         agent_name=self.name,
@@ -158,12 +179,19 @@ class SQLAgent:
                         justification=f"Autonomous reasoning led to this tool choice"
                     )
                     state = add_decision(state, decision)
+            else:
+                print(f"  ⚠️ NO INTERMEDIATE STEPS FOUND!", flush=True)
+            
+            print(f"\n📋 SUMMARY:", flush=True)
+            print(f"  Total tools called: {len(tools_called)}", flush=True)
+            print(f"  Tools: {tools_called}", flush=True)
+            print(f"", flush=True)
             
             # Step 3: Extract structured findings directly from tools
             # (not by parsing LLM observations)
             
             if "rules_tool" in tools_called:
-                rules_findings = rules_tool.analyze(filename, content, "sql")
+                rules_findings = rules_tool.analyze_sql(filename, content)
                 for finding in rules_findings:
                     state = add_finding(state, finding)
             
@@ -172,8 +200,11 @@ class SQLAgent:
                 for finding in parser_findings:
                     state = add_finding(state, finding)
             
-            # semantic_tool findings would be handled here if called
-            # (not implemented in Phase 1)
+            if "semantic_tool" in tools_called:
+                from backend.tools.llm.semantic_tool import semantic_tool
+                semantic_findings = semantic_tool.analyze(filename, content)
+                for finding in semantic_findings:
+                    state = add_finding(state, finding)
             
             # Log completion
             total_findings = len(state.get("findings", []))

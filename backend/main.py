@@ -16,6 +16,17 @@ from backend.state import File as StateFile, FileType, AnalysisState, Constraint
 from backend.utils.helpers import detect_file_type
 from backend.config import settings
 
+import logging
+
+# Configure logging to see LangChain agent reasoning
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+# Enable LangChain verbose output
+logging.getLogger("langchain").setLevel(logging.DEBUG)
+logging.getLogger("langchain.agents").setLevel(logging.DEBUG)
+
 
 # Create FastAPI app
 app = FastAPI(

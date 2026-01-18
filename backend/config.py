@@ -24,7 +24,7 @@ class Settings(BaseSettings):
     cost_per_1m_output_tokens: float = 0.0  # Free tier
     
     # Agent behavior
-    max_iterations_per_agent: int = Field(default=3, env="MAX_ITERATIONS")
+    max_iterations_per_agent: int = Field(default=6, env="MAX_ITERATIONS")  # Allow time for 3 tool calls
     enable_llm_tools: bool = Field(default=True, env="ENABLE_LLM_TOOLS")
     
     # Analysis thresholds
@@ -87,6 +87,55 @@ VETO_RULES_SQL = [
         "category": "COMMENTED_ROLLBACK",
         "description": "Rollback logic is commented out",
         "recommendation": "Uncomment rollback for migration safety."
+    },
+    {
+        "pattern": r"ALTER\s+TABLE\s+\w+\s+DROP\s+COLUMN",
+        "severity": "CRITICAL",
+        "category": "ALTER_DROP_COLUMN",
+        "description": "Permanent column removal - data loss",
+        "recommendation": "Add deprecation period. Verify no dependencies. Backup data first."
+    },
+    {
+        "pattern": r"ALTER\s+TABLE\s+\w+\s+DROP\s+CONSTRAINT",
+        "severity": "CRITICAL",
+        "category": "ALTER_DROP_CONSTRAINT",
+        "description": "Foreign key/constraint removal - breaks data integrity",
+        "recommendation": "Verify this doesn't orphan data or break referential integrity."
+    },
+    {
+        "pattern": r"ALTER\s+TABLE\s+\w+\s+RENAME\s+COLUMN",
+        "severity": "HIGH",
+        "category": "ALTER_RENAME_COLUMN",
+        "description": "Column rename - breaks existing queries and APIs",
+        "recommendation": "Add compatibility views. Coordinate with application deployment."
+    },
+    {
+        "pattern": r"ALTER\s+TABLE\s+\w+\s+ALTER\s+COLUMN\s+\w+\s+TYPE",
+        "severity": "HIGH",
+        "category": "ALTER_COLUMN_TYPE",
+        "description": "Column type change - may truncate or lose data",
+        "recommendation": "Test conversion on copy. Verify no data truncation."
+    },
+    {
+        "pattern": r"ALTER\s+SEQUENCE\s+\w+\s+RESTART",
+        "severity": "HIGH",
+        "category": "ALTER_SEQUENCE_RESTART",
+        "description": "Sequence restart - may cause primary key conflicts",
+        "recommendation": "Ensure restart value is above current max ID to avoid conflicts."
+    },
+    {
+        "pattern": r"ALTER\s+TABLE\s+\w+\s+ADD\s+CONSTRAINT",
+        "severity": "MEDIUM",
+        "category": "ALTER_ADD_CONSTRAINT",
+        "description": "Adding constraint may lock table or fail on existing data",
+        "recommendation": "Test on staging. Add constraint with NOT VALID first, then validate."
+    },
+    {
+        "pattern": r"ALTER\s+TABLE\s+\w+\s+ALTER\s+COLUMN\s+\w+\s+SET\s+NOT\s+NULL",
+        "severity": "MEDIUM",
+        "category": "ALTER_SET_NOT_NULL",
+        "description": "Setting NOT NULL may fail if existing rows have NULL values",
+        "recommendation": "Update NULL values first, then add constraint."
     }
 ]
 

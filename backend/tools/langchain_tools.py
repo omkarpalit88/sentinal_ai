@@ -352,28 +352,25 @@ def semantic_tool_func(filename: str, content: str, context: Optional[Dict] = No
     Args:
         filename: Name of SQL file
         content: SQL file content
-        context: Optional context from parser tool
+        context: Optional context (not used currently)
         
     Returns:
-        Human-readable summary of semantic findings with cost info
+        Human-readable summary of semantic findings
     """
-    from backend.tools.deterministic.semantic_tool import semantic_tool as semantic_tool_impl
+    from backend.tools.llm.semantic_tool import semantic_tool as semantic_impl
     
-    findings, cost = semantic_tool_impl.analyze(filename, content, context)
+    findings = semantic_impl.analyze(filename, content)
     
     if not findings:
-        return f"✅ No semantic risks detected in {filename} by LLM analysis (Cost: ${cost:.6f})"
+        return f"✅ No semantic business logic risks detected in {filename}"
     
     result = f"LLM Semantic Analysis found {len(findings)} risk(s) in {filename}:\n\n"
     for i, finding in enumerate(findings, 1):
         result += f"{i}. [{finding.severity.value}] {finding.category}\n"
         result += f"   {finding.description}\n"
-        result += f"   Reasoning: {finding.reasoning}\n"
         if finding.recommendation:
             result += f"   Recommendation: {finding.recommendation}\n"
         result += "\n"
-    
-    result += f"\n💰 LLM Cost: ${cost:.6f}"
     
     return result
 
@@ -381,25 +378,38 @@ def semantic_tool_func(filename: str, content: str, context: Optional[Dict] = No
 # Create tools with wrapper that extracts only required fields
 def make_rules_tool_wrapper(validated_input: RulesToolInput) -> str:
     """Wrapper that extracts only filename and content"""
-    return rules_tool_func(
+    print(f"\n🔧 RULES_TOOL WRAPPER CALLED", flush=True)
+    print(f"   Filename: {validated_input.filename}", flush=True)
+    result = rules_tool_func(
         filename=validated_input.filename,
         content=validated_input.content
     )
+    print(f"   Result length: {len(result)} chars", flush=True)
+    print(f"   Result preview: {result[:200]}...", flush=True)
+    return result
 
 def make_parser_tool_wrapper(validated_input: ParserToolInput) -> str:
     """Wrapper that extracts only filename and content"""
-    return parser_tool_func(
+    print(f"\n🔧 PARSER_TOOL WRAPPER CALLED", flush=True)
+    print(f"   Filename: {validated_input.filename}", flush=True)
+    result = parser_tool_func(
         filename=validated_input.filename,
         content=validated_input.content
     )
+    print(f"   Result length: {len(result)} chars", flush=True)
+    return result
 
 def make_semantic_tool_wrapper(validated_input: SemanticToolInput) -> str:
     """Wrapper that extracts filename, content, and optional context"""
-    return semantic_tool_func(
+    print(f"\n🔧 SEMANTIC_TOOL WRAPPER CALLED", flush=True)
+    print(f"   Filename: {validated_input.filename}", flush=True)
+    result = semantic_tool_func(
         filename=validated_input.filename,
         content=validated_input.content,
         context=validated_input.context
     )
+    print(f"   Result length: {len(result)} chars", flush=True)
+    return result
 
 rules_tool = StructuredTool.from_function(
     func=make_rules_tool_wrapper,
